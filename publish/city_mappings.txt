@@ -8,4 +8,5 @@ Oslo=no--Norway--Oslo
 Berlin=de--Germany--Berlin
 Tokyo=jp--Tokyo
 New York City=us--ny--New%20York
+New York=us--ny--New%20York
 Hawaii=us--hi--Honolulu
