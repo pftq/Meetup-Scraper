@@ -19,6 +19,7 @@ namespace MeetupScraper
         static List<string> excludedWords = new List<string>();
         static List<string> excludedOrganizers = new List<string>();
         static int minAttendees = 1;
+        static string emailUrl = ""; // Empty = skip email, set URL to enable
         static Dictionary<string, string> cityWithStateConversion = new Dictionary<string, string>();
 
         // Config file paths (relative to exe location)
@@ -145,7 +146,15 @@ namespace MeetupScraper
                 var lines = new List<string>
                 {
                     "# Settings (format: key=value)",
-                    "minAttendees=1"
+                    "minAttendees=1",
+                    "",
+                    "# Email URL for sending results (leave empty to disable)",
+                    "# Results are sent via POST with these variables:",
+                    "#   z = category (\"Events\")",
+                    "#   y = subject (\"Events Alert\")",
+                    "#   x = results text (the full event list)",
+                    "# Example: https://example.com/email.php",
+                    "emailUrl="
                 };
                 File.WriteAllLines(SettingsFile, lines);
                 return;
@@ -167,6 +176,9 @@ namespace MeetupScraper
                         case "minattendees":
                             if (int.TryParse(value, out int min))
                                 minAttendees = min;
+                            break;
+                        case "emailurl":
+                            emailUrl = value;
                             break;
                     }
                 }
@@ -998,23 +1010,32 @@ namespace MeetupScraper
                     // Save to results.txt (append with date prefix)
                     SaveResultsToFile(results);
 
-                    // Send email
-                    try
+                    // Send email (only if URL is configured)
+                    if (!string.IsNullOrEmpty(emailUrl))
                     {
-                        using (WebClient client = new WebClient())
+                        try
                         {
-                            byte[] response =
-                            client.UploadValues("https://www.pftq.com/stocks/TechTrader/email_generic.php", new System.Collections.Specialized.NameValueCollection()
+                            WriteLine("Sending results to: " + emailUrl);
+                            using (WebClient client = new WebClient())
                             {
-                                { "z", "Events" },
-                                { "y", "Events Alert"},
-                                { "x", results }
-                            });
+                                byte[] response =
+                                client.UploadValues(emailUrl, new System.Collections.Specialized.NameValueCollection()
+                                {
+                                    { "z", "Events" },
+                                    { "y", "Events Alert"},
+                                    { "x", results }
+                                });
+                            }
+                            WriteLine("Email sent successfully.");
+                        }
+                        catch (Exception emailEx)
+                        {
+                            WriteLine("Email failed (results still saved to file): " + emailEx.Message);
                         }
                     }
-                    catch (Exception emailEx)
+                    else
                     {
-                        WriteLine("Email failed (results still saved to file): " + emailEx.Message);
+                        WriteLine("Email URL not configured, skipping email notification.");
                     }
                 }
             }
