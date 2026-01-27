@@ -1,5 +1,5 @@
 # Meetup-Scraper
-Useful tool for being alerted on specific events from Meetup, since their filters for notifications and search are not very accurate (and lately does not seem to use your search phrase at all).
+Useful tool for searching exact keywords for specific events from Meetup.com, since their filters for notifications and search are not very accurate (and lately does not seem to use your search phrase at all).
 
 Settings / configurable settings generated in the text files when first run.
 
