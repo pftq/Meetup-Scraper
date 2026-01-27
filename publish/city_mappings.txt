@@ -1,0 +1,11 @@
+# City to Meetup URL mapping (format: CityName=url_code)
+# Add mappings for cities that need special URL encoding
+San Francisco=us--ca--San%20Francisco
+Los Angeles=us--ca--Los%20Angeles
+Honolulu=us--hi--Honolulu
+London=gb--Greater%20London--London
+Oslo=no--Norway--Oslo
+Berlin=de--Germany--Berlin
+Tokyo=jp--Tokyo
+New York City=us--ny--New%20York
+Hawaii=us--hi--Honolulu
