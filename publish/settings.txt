@@ -1,2 +1,10 @@
 # Settings (format: key=value)
 minAttendees=1
+
+# Email URL for sending results (leave empty to disable)
+# Results are sent via POST with these variables:
+#   z = category ("Events")
+#   y = subject ("Events Alert")
+#   x = results text (the full event list)
+# Example: https://example.com/email.php
+emailUrl=

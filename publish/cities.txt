@@ -1,7 +1,2 @@
 # Cities to search in (one per line)
-San Francisco
-Los Angeles
 New York
-London
-Tokyo
-Oslo
