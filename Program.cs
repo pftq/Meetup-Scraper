@@ -33,22 +33,11 @@ namespace MeetupScraper
 
         // Default values
         static readonly List<string> DefaultKeywords = new List<string>() {
-            "Ambidextrous Tennis", "Ambidextrous", "Polymath", "Composer", "Musician", "Spotify",
-            "Game Developer", "GameDev", "Gamers", "League of Legends", "Esports", "Starcraft",
-            "Two Rackets", "Filmmaker", "Actor", "Director", "YouTuber", "YouTube", "Content Creator",
-            "Anime", "Animation", "VTuber", "Autodidact", "Piano Improvisation",
-            "Tennis with Two Rackets", "People Who Do Everything", "Video Games", "Animators",
-            "Networking", "Startup", "Indie", "Streamer", "Twitch"
+            "Hiking"
         };
-        static readonly List<string> DefaultCities = new List<string>() { "Los Angeles" };
+        static readonly List<string> DefaultCities = new List<string>() { "New York" };
         static readonly List<string> DefaultExcludedWords = new List<string>() {
-            "African", "Asian", "Brooklyn", "Flushing", "Long Island", "Mental Health", "Cardio", "Table Tennis",
-            "Bronx", "Astoria", "New Jersey", "Forest Hills", "White Plains", "Class", "Workshop", "Bootcamp",
-            "Training", "Board Game", "Concert", "Muslim", "Christian", "Catholic", "Jewish", "Symposium", "MMTB",
-            "Ensemble", "Female", "Webinar", "Bach", "New Jersey", "NNJ", "Sausage", "Gay", "LGBT", "50+", "60+",
-            "50plus", "60plus", "quartet", "feminism", "career fair", "opera", "adaptive sport", "pickle",
-            "volleyball", "yonkers", "drills", "golf", "wedding", "squad", "balboa", "beatles", "recital",
-            "rehearsal", "east bay", "eastbay", "real estate", "scientology", "nude", "male", "sexual"
+            "50plus", "60plus"
         };
         static readonly Dictionary<string, string> DefaultCityMappings = new Dictionary<string, string>()
         {
@@ -1095,3 +1084,4 @@ namespace MeetupScraper
         }
     }
 }
+
