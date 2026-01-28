@@ -33,11 +33,22 @@ namespace MeetupScraper
 
         // Default values
         static readonly List<string> DefaultKeywords = new List<string>() {
-            "Hiking"
+            "Ambidextrous Tennis", "Ambidextrous", "Polymath", "Composer", "Musician", "Spotify",
+            "Game Developer", "GameDev", "Gamers", "League of Legends", "Esports", "Starcraft",
+            "Two Rackets", "Filmmaker", "Actor", "Director", "YouTuber", "YouTube", "Content Creator",
+            "Anime", "Animation", "VTuber", "Autodidact", "Piano Improvisation",
+            "Tennis with Two Rackets", "People Who Do Everything", "Video Games", "Animators",
+            "Networking", "Startup", "Indie", "Streamer", "Twitch"
         };
-        static readonly List<string> DefaultCities = new List<string>() { "New York" };
+        static readonly List<string> DefaultCities = new List<string>() { "Los Angeles" };
         static readonly List<string> DefaultExcludedWords = new List<string>() {
-            "50plus", "60plus"
+            "African", "Asian", "Brooklyn", "Flushing", "Long Island", "Mental Health", "Cardio", "Table Tennis",
+            "Bronx", "Astoria", "New Jersey", "Forest Hills", "White Plains", "Class", "Workshop", "Bootcamp",
+            "Training", "Board Game", "Concert", "Muslim", "Christian", "Catholic", "Jewish", "Symposium", "MMTB",
+            "Ensemble", "Female", "Webinar", "Bach", "New Jersey", "NNJ", "Sausage", "Gay", "LGBT", "50+", "60+",
+            "50plus", "60plus", "quartet", "feminism", "career fair", "opera", "adaptive sport", "pickle",
+            "volleyball", "yonkers", "drills", "golf", "wedding", "squad", "balboa", "beatles", "recital",
+            "rehearsal", "east bay", "eastbay", "real estate", "scientology", "nude", "male", "sexual"
         };
         static readonly Dictionary<string, string> DefaultCityMappings = new Dictionary<string, string>()
         {
@@ -176,7 +187,8 @@ namespace MeetupScraper
 
         ///// end of configurables //////
 
-        static SortedDictionary<DateTime, Dictionary<string, List<Tuple<string, string>>>> foundEvents = new SortedDictionary<DateTime, Dictionary<string, List<Tuple<string, string>>>>();
+        // Tuple: eventName, eventUrl, snippet
+        static SortedDictionary<DateTime, Dictionary<string, List<Tuple<string, string, string>>>> foundEvents = new SortedDictionary<DateTime, Dictionary<string, List<Tuple<string, string, string>>>>();
 
         static HashSet<string> duplicateURLs = new HashSet<string>();
         static HashSet<string> duplicateEvs = new HashSet<string>();
@@ -233,9 +245,11 @@ namespace MeetupScraper
             {
                 try
                 {
+                    if (browser == null)
+                        throw new WebDriverException("Browser is null");
                     return browser.PageSource;
                 }
-                catch (WebDriverException ex)
+                catch (Exception ex)
                 {
                     WriteLine($"    PageSource failed (attempt {attempt}/{retries}): {ex.Message}");
 
@@ -243,9 +257,18 @@ namespace MeetupScraper
                     {
                         WriteLine("    Recreating browser...");
                         try { CleanupBrowser(browser); } catch { }
+                        browser = null;
                         System.Threading.Thread.Sleep(3000);
-                        browser = CreateBrowser();
-                        System.Threading.Thread.Sleep(2000);
+                        try
+                        {
+                            browser = CreateBrowser();
+                            System.Threading.Thread.Sleep(2000);
+                        }
+                        catch (Exception createEx)
+                        {
+                            WriteLine($"    Browser creation failed: {createEx.Message}");
+                            browser = null;
+                        }
                     }
                 }
             }
@@ -258,10 +281,12 @@ namespace MeetupScraper
             {
                 try
                 {
+                    if (browser == null)
+                        throw new WebDriverException("Browser is null");
                     browser.Navigate().GoToUrl(url);
                     return true;
                 }
-                catch (WebDriverException ex)
+                catch (Exception ex)
                 {
                     WriteLine($"    Navigation failed (attempt {attempt}/{retries}): {ex.Message}");
 
@@ -269,9 +294,18 @@ namespace MeetupScraper
                     {
                         WriteLine("    Recreating browser...");
                         try { CleanupBrowser(browser); } catch { }
+                        browser = null;
                         System.Threading.Thread.Sleep(3000);
-                        browser = CreateBrowser();
-                        System.Threading.Thread.Sleep(2000);
+                        try
+                        {
+                            browser = CreateBrowser();
+                            System.Threading.Thread.Sleep(2000);
+                        }
+                        catch (Exception createEx)
+                        {
+                            WriteLine($"    Browser creation failed: {createEx.Message}");
+                            browser = null;
+                        }
                     }
                 }
             }
@@ -286,6 +320,9 @@ namespace MeetupScraper
 
         static void Main(string[] args)
         {
+            // Clear log file on startup
+            try { File.WriteAllText("MeetupScraper.txt", ""); } catch { }
+
             WriteLine("New run...");
             LoadConfig();
             try
@@ -332,6 +369,22 @@ namespace MeetupScraper
                         {
                             try
                             {
+                                // Ensure browser is valid before each search
+                                if (browser == null)
+                                {
+                                    WriteLine(" - Browser is null, recreating...");
+                                    try
+                                    {
+                                        browser = CreateBrowser();
+                                        System.Threading.Thread.Sleep(2000);
+                                    }
+                                    catch (Exception createEx)
+                                    {
+                                        WriteLine(" - Browser creation failed: " + createEx.Message);
+                                        continue;
+                                    }
+                                }
+
                                 string encodedKeyword = Uri.EscapeDataString(keyword);
                                 string url = "https://www.meetup.com/find/?keywords=" + encodedKeyword + "&source=EVENTS&eventType=inPerson&distance=twentyFiveMiles&location=" + (cityWithStateConversion.ContainsKey(l) ? cityWithStateConversion[l] : Uri.EscapeDataString(l));
                                 WriteLine("Searching " + url);
@@ -479,6 +532,13 @@ namespace MeetupScraper
         {
             try
             {
+                // Skip if browser is null
+                if (browser == null)
+                {
+                    WriteLine(" - Skipping (browser unavailable): " + eventUrl);
+                    return;
+                }
+
                 WriteLine(" - Checking " + eventUrl);
 
                 string subURL = eventUrl.Split('?').First();
@@ -529,53 +589,140 @@ namespace MeetupScraper
                 catch { }
 
                 // Read attendee count
-                int numAttend = 1;
+                int numAttend = 0;
                 try
                 {
-                    var attendeeText = doc2.DocumentNode.SelectSingleNode(".//*[contains(text(), 'attending') or contains(text(), 'attendee') or contains(text(), 'going')]");
-                    if (attendeeText != null)
+                    string pageSource = source;
+
+                    // Try Apollo GraphQL state (Meetup uses this)
+                    // Structure: "goingCount":{"__typename":"RsvpConnection","totalCount":28}
+                    var goingMatch = Regex.Match(pageSource, @"""goingCount""\s*:\s*\{[^}]*""totalCount""\s*:\s*(\d+)");
+                    if (goingMatch.Success)
+                        numAttend = Int32.Parse(goingMatch.Groups[1].Value);
+
+                    // Try JSON-LD
+                    if (numAttend == 0)
                     {
-                        var match = System.Text.RegularExpressions.Regex.Match(attendeeText.InnerText, @"(\d+)\s*(attending|attendee|going)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                        if (match.Success)
-                            numAttend = Int32.Parse(match.Groups[1].Value);
+                        var jsonLdAttend = doc2.DocumentNode.SelectSingleNode("//script[@type='application/ld+json']");
+                        if (jsonLdAttend != null)
+                        {
+                            var attendMatch = Regex.Match(jsonLdAttend.InnerText, @"""numberOfAttendees""\s*:\s*(\d+)");
+                            if (attendMatch.Success)
+                                numAttend = Int32.Parse(attendMatch.Groups[1].Value);
+                        }
+                    }
+
+                    // Fallback: search page text for attendance patterns
+                    if (numAttend == 0)
+                    {
+                        string pageText = doc2.DocumentNode.InnerText;
+                        var patterns = new string[]
+                        {
+                            @"(\d+)\+?\s*(?:attending|going)",
+                            @"(\d+)\+?\s*attendee",
+                            @"(\d+)\s*(?:people|person)\s*(?:attending|going)"
+                        };
+                        foreach (var pattern in patterns)
+                        {
+                            var match = Regex.Match(pageText, pattern, RegexOptions.IgnoreCase);
+                            if (match.Success)
+                            {
+                                numAttend = Int32.Parse(match.Groups[1].Value);
+                                break;
+                            }
+                        }
                     }
                 }
                 catch { }
 
-                // Read date - prefer JSON-LD for reliability
-                DateTime eventDate = DateTime.Now;
+                // Read date - try multiple sources
+                DateTime eventDate = DateTime.MinValue;
+                bool foundDate = false;
                 try
                 {
+                    // Method 1: JSON-LD startDate
                     var jsonLd = doc2.DocumentNode.SelectSingleNode("//script[@type='application/ld+json']");
-                    if (jsonLd != null)
+                    if (jsonLd != null && !foundDate)
                     {
-                        var match = System.Text.RegularExpressions.Regex.Match(jsonLd.InnerText, @"""startDate""\s*:\s*""([^""]+)""");
+                        var match = Regex.Match(jsonLd.InnerText, @"""startDate""\s*:\s*""([^""]+)""");
                         if (match.Success)
                         {
-                            eventDate = DateTime.Parse(match.Groups[1].Value);
-                            WriteLine(" - - Date: " + eventDate.ToShortDateString());
+                            if (DateTime.TryParse(match.Groups[1].Value, out DateTime parsed))
+                            {
+                                eventDate = parsed;
+                                foundDate = true;
+                            }
                         }
                     }
-                    else
+
+                    // Method 2: Apollo GraphQL state (Meetup uses this)
+                    if (!foundDate)
+                    {
+                        // Look for dateTime in Apollo state: "dateTime":"2025-02-15T14:00-08:00"
+                        var apolloMatch = Regex.Match(source, @"""dateTime""\s*:\s*""(\d{4}-\d{2}-\d{2}T[^""]+)""");
+                        if (apolloMatch.Success)
+                        {
+                            if (DateTime.TryParse(apolloMatch.Groups[1].Value, out DateTime parsed))
+                            {
+                                eventDate = parsed;
+                                foundDate = true;
+                            }
+                        }
+                    }
+
+                    // Method 3: time element with datetime attribute
+                    if (!foundDate)
                     {
                         var timeNode = doc2.DocumentNode.SelectSingleNode(".//time[@datetime]");
                         if (timeNode != null)
                         {
                             string dt = timeNode.GetAttributeValue("datetime", "");
-                            if (!string.IsNullOrEmpty(dt))
-                                eventDate = DateTime.Parse(dt);
+                            if (!string.IsNullOrEmpty(dt) && DateTime.TryParse(dt, out DateTime parsed))
+                            {
+                                eventDate = parsed;
+                                foundDate = true;
+                            }
+                        }
+                    }
+
+                    // Method 4: Look for ISO date pattern in page source
+                    if (!foundDate)
+                    {
+                        // Match ISO 8601 date patterns
+                        var isoMatch = Regex.Match(source, @"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:?\d{2}|Z)?)");
+                        if (isoMatch.Success)
+                        {
+                            if (DateTime.TryParse(isoMatch.Groups[1].Value, out DateTime parsed))
+                            {
+                                // Sanity check - should be in future
+                                if (parsed > DateTime.Now.AddDays(-1) && parsed < DateTime.Now.AddYears(1))
+                                {
+                                    eventDate = parsed;
+                                    foundDate = true;
+                                }
+                            }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
                     WriteLine(" - - Date parse error: " + ex.Message);
+                }
+
+                if (!foundDate)
+                {
+                    WriteLine(" - - Could not determine event date, skipping");
                     return;
                 }
 
-                if (eventDate > DateTime.Now.AddMonths(3) || eventDate < DateTime.Now.AddDays(-1))
+                if (eventDate > DateTime.Now.AddMonths(3))
                 {
-                    WriteLine(" - - Date out of range: " + eventDate.ToShortDateString());
+                    WriteLine(" - - Date too far in future: " + eventDate.ToString("M/d/yyyy h:mm tt"));
+                    return;
+                }
+                if (eventDate < DateTime.Now.AddDays(-1))
+                {
+                    WriteLine(" - - Date in past: " + eventDate.ToString("M/d/yyyy h:mm tt"));
                     return;
                 }
 
@@ -593,6 +740,7 @@ namespace MeetupScraper
                 }
 
                 WriteLine(" - - Event: " + eventName);
+                WriteLine(" - - Date/Time: " + eventDate.ToString("M/d/yyyy h:mm tt"));
 
                 // Check excluded words
                 bool excl = false;
@@ -617,20 +765,28 @@ namespace MeetupScraper
                 if (!excludedOrganizers.Contains(organizer) && numAttend >= minAttendees &&
                     (keywordInTitle || keywordInDescription))
                 {
-                    // Show where keyword was found
+                    // Build snippet showing where keyword was found
+                    string snippet = "";
                     if (keywordInTitle)
+                    {
                         WriteLine(" - - Keyword found in title: \"" + eventName + "\"");
+                        snippet = "Title match";
+                    }
                     if (keywordInDescription)
-                        WriteLine(" - - Keyword found in description: \"" + GetSnippet(descriptionString, keyword) + "\"");
+                    {
+                        string descSnippet = GetSnippet(descriptionString, keyword);
+                        WriteLine(" - - Keyword found in description: \"" + descSnippet + "\"");
+                        snippet = string.IsNullOrEmpty(snippet) ? descSnippet : snippet + " | " + descSnippet;
+                    }
 
                     string k = keyword + ", " + city;
                     if (!foundEvents.ContainsKey(eventDate))
-                        foundEvents[eventDate] = new Dictionary<string, List<Tuple<string, string>>>();
+                        foundEvents[eventDate] = new Dictionary<string, List<Tuple<string, string, string>>>();
 
                     if (!foundEvents[eventDate].ContainsKey(k))
-                        foundEvents[eventDate][k] = new List<Tuple<string, string>>();
+                        foundEvents[eventDate][k] = new List<Tuple<string, string, string>>();
 
-                    foundEvents[eventDate][k].Add(Tuple.Create(eventName, eventUrl));
+                    foundEvents[eventDate][k].Add(Tuple.Create(eventName, eventUrl, snippet));
                     c++;
                     WriteLine(" - - Added #" + c);
                 }
@@ -708,6 +864,22 @@ namespace MeetupScraper
                     {
                         try
                         {
+                            // Ensure browser is valid before each search
+                            if (browser == null)
+                            {
+                                WriteLine(" - Browser is null, recreating...");
+                                try
+                                {
+                                    browser = CreateBrowser();
+                                    System.Threading.Thread.Sleep(2000);
+                                }
+                                catch (Exception createEx)
+                                {
+                                    WriteLine(" - Browser creation failed: " + createEx.Message);
+                                    continue;
+                                }
+                            }
+
                             string citySlug = city.Replace(" ", "-").ToLower();
                             string encodedKeyword = Uri.EscapeDataString(keyword);
                             string url = $"https://www.eventbrite.com/d/{citySlug}/{encodedKeyword}/";
@@ -792,6 +964,13 @@ namespace MeetupScraper
         {
             try
             {
+                // Skip if browser is null
+                if (browser == null)
+                {
+                    WriteLine(" - Skipping (browser unavailable): " + eventUrl);
+                    return;
+                }
+
                 string subURL = eventUrl.Split('?').First();
                 if (duplicateURLs.Contains(subURL))
                     return;
@@ -914,19 +1093,19 @@ namespace MeetupScraper
                 }
                 else
                 {
-                    WriteLine(" - - Date: " + eventDate.ToShortDateString());
+                    WriteLine(" - - Date/Time: " + eventDate.ToString("M/d/yyyy h:mm tt"));
                 }
 
                 // Check date range
                 if (eventDate > DateTime.Now.AddMonths(3))
                 {
-                    WriteLine(" - - Date out of range (too far future): " + eventDate.ToShortDateString());
+                    WriteLine(" - - Date out of range (too far future): " + eventDate.ToString("M/d/yyyy h:mm tt"));
                     return;
                 }
 
                 if (eventDate < DateTime.Now.AddDays(-1))
                 {
-                    WriteLine(" - - Date out of range (past): " + eventDate.ToShortDateString());
+                    WriteLine(" - - Date out of range (past): " + eventDate.ToString("M/d/yyyy h:mm tt"));
                     return;
                 }
 
@@ -960,19 +1139,28 @@ namespace MeetupScraper
 
                 if (!excludedOrganizers.Contains(organizer) && (keywordInTitle || keywordInDescription))
                 {
+                    // Build snippet showing where keyword was found
+                    string snippet = "";
                     if (keywordInTitle)
+                    {
                         WriteLine(" - - Keyword found in title: \"" + eventName + "\"");
+                        snippet = "Title match";
+                    }
                     if (keywordInDescription)
-                        WriteLine(" - - Keyword found in description: \"" + GetSnippet(descriptionString, keyword) + "\"");
+                    {
+                        string descSnippet = GetSnippet(descriptionString, keyword);
+                        WriteLine(" - - Keyword found in description: \"" + descSnippet + "\"");
+                        snippet = string.IsNullOrEmpty(snippet) ? descSnippet : snippet + " | " + descSnippet;
+                    }
 
                     string k = keyword + ", " + city + " (EventBrite)";
                     if (!foundEvents.ContainsKey(eventDate))
-                        foundEvents[eventDate] = new Dictionary<string, List<Tuple<string, string>>>();
+                        foundEvents[eventDate] = new Dictionary<string, List<Tuple<string, string, string>>>();
 
                     if (!foundEvents[eventDate].ContainsKey(k))
-                        foundEvents[eventDate][k] = new List<Tuple<string, string>>();
+                        foundEvents[eventDate][k] = new List<Tuple<string, string, string>>();
 
-                    foundEvents[eventDate][k].Add(Tuple.Create(eventName, subURL));
+                    foundEvents[eventDate][k].Add(Tuple.Create(eventName, subURL, snippet));
                     c++;
                     WriteLine(" - - Added #" + c);
                 }
@@ -1059,21 +1247,26 @@ namespace MeetupScraper
                 //create a string to hold the data file
                 var csv = new StringBuilder();
 
-                foreach (KeyValuePair<DateTime, Dictionary<string, List<Tuple<string, string>>>> foundEvent in foundEvents)
-                    {
-                    foreach(KeyValuePair<string, List<Tuple<string, string>>> keyw in foundEvent.Value) {
-                        foreach (Tuple<string, string> ev in keyw.Value)
+                foreach (KeyValuePair<DateTime, Dictionary<string, List<Tuple<string, string, string>>>> foundEvent in foundEvents)
+                {
+                    foreach(KeyValuePair<string, List<Tuple<string, string, string>>> keyw in foundEvent.Value) {
+                        foreach (Tuple<string, string, string> ev in keyw.Value)
                         {
-                            string eve = foundEvent.Key.ToShortDateString() + " (" + keyw.Key + "): " + ev.Item1 + " \n - " + ev.Item2;
-                            if (duplicateEvs.Contains(eve)) continue;
-                            csv.Append(i + ". " + eve + " \n\n");
-                            duplicateEvs.Add(eve);
+                            // Format: date + time, keyword/city, event name
+                            string dateTime = foundEvent.Key.ToString("M/d/yyyy h:mm tt");
+                            string eve = dateTime + " (" + keyw.Key + "): " + ev.Item1 + "\n   " + ev.Item2;
+
+                            // Add snippet if available
+                            if (!string.IsNullOrEmpty(ev.Item3))
+                                eve += "\n   > " + ev.Item3;
+
+                            if (duplicateEvs.Contains(ev.Item2)) continue; // Check URL for duplicates
+                            csv.Append(i + ". " + eve + "\n\n");
+                            duplicateEvs.Add(ev.Item2);
                             i++;
                         }
                     }
                 }
-
-                
 
                 return csv.ToString();
             }
@@ -1084,4 +1277,3 @@ namespace MeetupScraper
         }
     }
 }
-
