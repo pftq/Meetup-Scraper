@@ -1,7 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual C# Express 2010
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeetupScraper", "MeetupScraper.csproj", "{F95690B6-E258-481C-9644-44653DF31B0E}"
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30225.117
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MeetupScraper", "MeetupScraper.csproj", "{F95690B6-E258-481C-9644-44653DF31B0E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,12 +11,15 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F95690B6-E258-481C-9644-44653DF31B0E}.Debug|x86.ActiveCfg = Debug|x86
-		{F95690B6-E258-481C-9644-44653DF31B0E}.Debug|x86.Build.0 = Debug|x86
-		{F95690B6-E258-481C-9644-44653DF31B0E}.Release|x86.ActiveCfg = Release|x86
-		{F95690B6-E258-481C-9644-44653DF31B0E}.Release|x86.Build.0 = Release|x86
+		{F95690B6-E258-481C-9644-44653DF31B0E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F95690B6-E258-481C-9644-44653DF31B0E}.Debug|x86.Build.0 = Debug|Any CPU
+		{F95690B6-E258-481C-9644-44653DF31B0E}.Release|x86.ActiveCfg = Release|Any CPU
+		{F95690B6-E258-481C-9644-44653DF31B0E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8E0F89B8-4391-4994-B7C9-463565F4991C}
 	EndGlobalSection
 EndGlobal

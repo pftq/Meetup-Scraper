@@ -227,6 +227,7 @@ namespace MeetupScraper
             options.AddArguments("--disable-logging");
             options.AddArguments("--window-size=1920,1080");
 
+            // no driver path so selenium downloads the chromedriver matching installed chrome
             var service = ChromeDriverService.CreateDefaultService();
             service.SuppressInitialDiagnosticInformation = true;
             service.HideCommandPromptWindow = true;
@@ -236,8 +237,24 @@ namespace MeetupScraper
             browser.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
             browser.Manage().Timeouts().AsynchronousJavaScript = TimeSpan.FromSeconds(30);
 
+            if (!loggedDriverVersions)
+            {
+                loggedDriverVersions = true;
+                try
+                {
+                    var caps = browser.Capabilities;
+                    var chromeCaps = caps.GetCapability("chrome") as IDictionary<string, object>;
+                    object driverVersion = null;
+                    if (chromeCaps != null) chromeCaps.TryGetValue("chromedriverVersion", out driverVersion);
+                    WriteLine($"  Chrome {caps.GetCapability("browserVersion")}, ChromeDriver {driverVersion?.ToString().Split(' ')[0] ?? "?"} (auto-matched)");
+                }
+                catch { }
+            }
+
             return browser;
         }
+
+        static bool loggedDriverVersions = false;
 
         static string SafeGetPageSource(ref ChromeDriver browser, int retries = 3)
         {
@@ -330,9 +347,9 @@ namespace MeetupScraper
                 while (true)
                 {
                     // unhide to send full list each time
-                    //duplicateURLs = new HashSet<string>();
-                    //duplicateEvs = new HashSet<string>();
-                    //foundEvents = new SortedDictionary<DateTime, Dictionary<string, List<Tuple<string, string>>>>();
+                    duplicateURLs = new HashSet<string>();
+                    duplicateEvs = new HashSet<string>();
+                    foundEvents = new SortedDictionary<DateTime, Dictionary<string, List<Tuple<string, string, string>>>>();
 
                     //call the functions to search both sites
                     SearchMeetup();
@@ -758,9 +775,9 @@ namespace MeetupScraper
 
                 if (excl) return;
 
-                // Add if matches criteria - whole word match only for description
-                bool keywordInTitle = eventName.ToLower().Contains(keyword.ToLower());
-                bool keywordInDescription = Regex.IsMatch(descriptionString, @"\b" + Regex.Escape(keyword.ToLower()) + @"\b", RegexOptions.IgnoreCase);
+                // Add if matches criteria - flexible plural matching
+                bool keywordInTitle = MatchesKeyword(eventName, keyword, wholeWord: false);
+                bool keywordInDescription = MatchesKeyword(descriptionString, keyword, wholeWord: true);
 
                 if (!excludedOrganizers.Contains(organizer) && numAttend >= minAttendees &&
                     (keywordInTitle || keywordInDescription))
@@ -798,6 +815,35 @@ namespace MeetupScraper
             catch (Exception ex)
             {
                 WriteLine(" - - Error: " + ex.Message);
+            }
+        }
+
+        private static bool MatchesKeyword(string text, string keyword, bool wholeWord = true)
+        {
+            // Match keyword as-is, with added 's', or without trailing 's'
+            string kw = keyword.ToLower();
+            string kwPlural = kw + "s";
+            string kwSingular = kw.EndsWith("s") ? kw.Substring(0, kw.Length - 1) : null;
+
+            string textLower = text.ToLower();
+
+            if (wholeWord)
+            {
+                // Whole word matching with regex
+                string pattern = @"\b(" + Regex.Escape(kw) + "|" + Regex.Escape(kwPlural);
+                if (kwSingular != null)
+                    pattern += "|" + Regex.Escape(kwSingular);
+                pattern += @")\b";
+
+                return Regex.IsMatch(textLower, pattern, RegexOptions.IgnoreCase);
+            }
+            else
+            {
+                // Simple contains matching
+                if (textLower.Contains(kw)) return true;
+                if (textLower.Contains(kwPlural)) return true;
+                if (kwSingular != null && textLower.Contains(kwSingular)) return true;
+                return false;
             }
         }
 
@@ -1133,9 +1179,9 @@ namespace MeetupScraper
 
                 if (excl) return;
 
-                // Check keyword match - whole word only for description
-                bool keywordInTitle = eventName.ToLower().Contains(keyword.ToLower());
-                bool keywordInDescription = Regex.IsMatch(descriptionString, @"\b" + Regex.Escape(keyword.ToLower()) + @"\b", RegexOptions.IgnoreCase);
+                // Check keyword match - flexible plural matching
+                bool keywordInTitle = MatchesKeyword(eventName, keyword, wholeWord: false);
+                bool keywordInDescription = MatchesKeyword(descriptionString, keyword, wholeWord: true);
 
                 if (!excludedOrganizers.Contains(organizer) && (keywordInTitle || keywordInDescription))
                 {
