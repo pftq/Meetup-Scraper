@@ -6,4 +6,6 @@ https://github.com/pftq/Meetup-Scraper/releases/tag/20260126
 
 Settings / configurable settings generated in the text files when first run.
 
-Special thanks to Try-this-at-home (trythisatho.me) for programming most of this on commission.  Updated with Claude Code in 2026 to adapt to infinity scroll and other changes on the websites.
+Special thanks to Try-this-at-home (trythisatho.me) for programming most of this on commission.
+
+Updated 2026/11/23 to not be locked to a specific Chrome browser version.
